@@ -13,56 +13,73 @@ services:
         done; (exit $$s)"
     restart: unless-stopped
     volumes:
-      - ./uploads:/app/uploads
+      - /var/lib/univention-appcenter/apps/rocketchat-new/data/uploads:/app/uploads
     environment:
       - PORT=3000
       - ROOT_URL=http://localhost:3000
-      - MONGO_URL=mongodb://mongo:27017/rocketchat
-      - MONGO_OPLOG_URL=mongodb://mongo:27017/local
-      - MAIL_URL=smtp://smtp.email
+      - MONGO_URL=mongodb://mongo:27018/rocketchat
+      - MONGO_OPLOG_URL=mongodb://mongo:27018/local
+#      - MAIL_URL=smtp://smtp.email
     depends_on:
       - mongo
     ports:
-      - 3000:3000
+      - 4005:3000
     labels:
       - "traefik.backend=rocketchat"
       - "traefik.frontend.rule=Host: your.domain.tld"
+     networks:
+      - net
+      - rocket    
+
 
   mongo:
-    image: mongo:4.0
+    image: mongo:4.0.19
     restart: unless-stopped
     volumes:
-      - ./data/db:/data/db
-      - ./data/dump:/dump
+      - /var/lib/univention-appcenter/apps/rocketchat-new/data/db:/data/db
+      - /var/lib/univention-appcenter/apps/rocketchat-new/data/dump:/dump
     command: >
       bash -c
         "while [ ! -f /data/db/WiredTiger ]; do
           echo \"wiredTiger migration hasn't started yet. Waiting 30 secs...\";
           sleep 30;
         done;
-        docker-entrypoint.sh mongod --oplogSize 128 --replSet rs0 --storageEngine=wiredTiger;"
+        docker-entrypoint.sh mongod --port 27018 --oplogSize 128 --replSet rs0 --storageEngine=wiredTiger;"
     depends_on:
       - migrator
     labels:
       - "traefik.enable=false"
+    ports:
+     - 27018:27018
+    networks:
+      - rocket
 
   migrator:
     build: ./docker/
     volumes:
-      - ./data/db:/data/db
+      - /var/lib/univention-appcenter/apps/rocketchat-new/data/db:/data/db
 
   mongo-init-replica:
     image: mongo:4.0
     command: >
       bash -c
         "for (( ; ; )); do
-          mongo mongo/rocketchat --eval \"
+          mongo --port 27018 mongo/rocketchat --eval \"
             rs.initiate({
               _id: 'rs0',
-              members: [ { _id: 0, host: 'localhost:27017' } ]})\" &&
+              members: [ { _id: 0, host: 'localhost:27018' } ]})\" &&
           s=$$? && break || s=$$?;
           echo \"Could not reach MongoDB. Waiting 5 secs ...\";
           sleep 5;
         done; (exit $$s)"
     depends_on:
       - mongo
+    networks:
+      - rocket
+      
+networks:
+  net:
+    external: true
+  rocket:
+    internal: true
+  

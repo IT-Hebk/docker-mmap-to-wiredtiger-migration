@@ -6,19 +6,19 @@ if [ -f /data/db/WiredTiger  ]; then
     exit 0
 fi
 
-mmapArgs="mongod --port 27018 --smallfiles --oplogSize 128 --replSet rs0 --storageEngine=mmapv1 --bind_ip_all"
+mmapArgs="mongod --smallfiles --oplogSize 128 --replSet rs0 --storageEngine=mmapv1 --bind_ip_all"
 mmapArgsArr=($mmapArgs)
 echo "Start mmap instance in background..."
 exec $mmapArgsArr > /dev/null 2>&1 &
 mmapPid="$!"
 
 echo "Wait until mmap instance is ready..."
-while ! mongo --port 27018 --eval "db.runCommand( { serverStatus: 1 } )"; do
+while ! mongo  --eval "db.runCommand( { serverStatus: 1 } )"; do
     sleep 1;
 done;
 
 echo "Create dump from running mmap instance..."
-mongodump --port=27018 --archive=/tmp/mmap --gzip
+mongodump  --archive=/tmp/mmap --gzip
 
 echo "Kill mmap instace gracefully"
 kill $mmapPid
@@ -31,22 +31,22 @@ done
 echo "Remove existing mmap database files"
 rm -rf /data/db/*
 
-wiredTigerArgs="mongod --port 27018 --smallfiles --oplogSize 128 --replSet rs0 --storageEngine=wiredWiger --bind_ip_all"
+wiredTigerArgs="mongod  --smallfiles --oplogSize 128 --replSet rs0 --storageEngine=wiredWiger --bind_ip_all"
 wiredTigerArgsArr=($wiredTigerArgs)
 echo "Start wiredTiger instance in background..."
 exec $wiredTigerArgsArr &
 wiredTigerPid="$!"
 
 echo "Wait until wiredTiger instance is ready..."
-while ! mongo --port 27018 --eval "db.runCommand( { serverStatus: 1 } )"; do
+while ! mongo  --eval "db.runCommand( { serverStatus: 1 } )"; do
     sleep 1;
 done
 
 echo "Restore dump into wiredTiger instance..."
-mongorestore --port=27018 --drop --archive=/tmp/mmap --gzip --noIndexRestore
+mongorestore  --drop --archive=/tmp/mmap --gzip --noIndexRestore
 
 echo "Repair database to restore indices"
-mongo --port 27018 --eval 'db.repairDatabase()' 
+mongo --eval 'db.repairDatabase()' 
 
 echo "Kill wiredTiger instace gracefully"
 kill $wiredTigerPid

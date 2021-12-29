@@ -23,7 +23,7 @@ services:
     depends_on:
       - mongo
     ports:
-      - 4005:3000
+      - 40005:3000
     labels:
       - "traefik.backend=rocketchat"
       - "traefik.frontend.rule=Host: your.domain.tld"

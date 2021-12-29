@@ -58,6 +58,8 @@ services:
     build: ./docker/
     volumes:
       - /var/lib/univention-appcenter/apps/rocketchat-new/data/db:/data/db
+    networks:
+      - rocket
 
   mongo-init-replica:
     image: mongo:4.0
